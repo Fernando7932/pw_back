@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// 1. Define el proveedor de base de datos.
+datasource db {
+  provider = "postgresql"
+  // 2. Pon tu URL de conexión en un archivo .env
+  // Ejemplo: "postgresql://USER:PASSWORD@localhost:5432/DATABASE_NAME"
+  url      = env("DATABASE_URL")
+}
+
+// 3. Define el generador de cliente de Prisma.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ===================================================
+// MODELOS DE BASE DE DATOS BASADOS EN TUS RFs
+// ===================================================
+
+// Modelo de Usuario (RF-01, RF-04, RF-06)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  passwordHash String
+  createdAt DateTime @default(now())
+
+  // --- Campos de Rol (Streamer o Espectador) ---
+  // RF-07 (Saldo)
+  coins Int @default(0) // Las monedas son GLOBALES
+
+  // --- ¡CAMPOS ELIMINADOS! ---
+  // spectatorPoints y spectatorLevel se mueven al modelo 'Loyalty'
+
+  // RF-17, RF-18 (Nivel Streamer)
+  streamHours   Float  @default(0)
+  streamerLevel Int    @default(1)
+
+  // --- Relaciones ---
+  stream Stream? // Un usuario puede tener UN stream
+  gifts  Gift[]  // Un usuario (streamer) puede tener MUCHOS regalos
+
+  // --- ¡NUEVAS RELACIONES (MÓDULO 3.D)! ---
+  // (Para RF-23)
+  levelConfigs SpectatorLevelConfig[]
+  
+  // (Para el nuevo modelo de Lealtad)
+  loyaltyGiven     Loyalty[] @relation("SpectatorLoyalty") // El espectador
+  loyaltyReceived  Loyalty[] @relation("StreamerLoyalty")  // El streamer
+}
+
+// Modelo del Stream (Canal)
+model Stream {
+  id      String  @id @default(uuid())
+  title   String  @default("Mi stream")
+  isLive  Boolean @default(false)
+  
+  // (Para calcular la duración de la sesión)
+  streamStartTime DateTime?
+  
+  // Clave secreta (RF-24)
+  streamKey String @unique
+  
+  // Relación con el dueño (Streamer)
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique // El stream PERTENECE a un usuario
+}
+
+// Modelo de Regalos (RF-09, RF-15, RF-22)
+model Gift {
+  id     String @id @default(uuid())
+  name   String
+  cost   Int // Costo en monedas (RF-15)
+  points Int // Puntos que otorga (RF-15)
+
+  // (El regalo ahora debe pertenecer a un streamer)
+  streamer   User   @relation(fields: [streamerId], references: [id])
+  streamerId String
+}
+
+// --- ¡NUEVO MODELO (MÓDULO 3.D)! ---
+// (RF-08, RF-11)
+// Esta tabla rastrea los puntos/nivel de un espectador para un streamer
+model Loyalty {
+  id      String @id @default(uuid())
+  points  Int    @default(0)
+  level   Int    @default(1)
+
+  // Relación con el Espectador
+  spectator   User   @relation("SpectatorLoyalty", fields: [spectatorId], references: [id])
+  spectatorId String
+
+  // Relación con el Streamer
+  streamer    User   @relation("StreamerLoyalty", fields: [streamerId], references: [id])
+  streamerId  String
+  
+  // Un espectador solo puede tener una entrada de lealtad por streamer
+  @@unique([spectatorId, streamerId])
+}
+
+
+// --- ¡MODELO ACTUALIZADO (MÓDULO 3.D)! ---
+// Modelo de Configuración de Niveles (RF-23)
+model SpectatorLevelConfig {
+  id             String @id @default(uuid())
+  level          Int    
+  pointsRequired Int // Puntos para alcanzar este nivel
+
+  // (RF-23) Ahora cada streamer define sus niveles
+  streamer   User   @relation(fields: [streamerId], references: [id])
+  streamerId String
+  
+  @@unique([level, streamerId]) // Un streamer solo puede definir el Nivel 2 una vez
+}
