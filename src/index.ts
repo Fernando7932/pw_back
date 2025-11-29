@@ -20,7 +20,7 @@ const httpServer = createServer(app);
 // --- INICIALIZA SOCKET.IO ---
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173", // Permite la conexión con tu frontend
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
