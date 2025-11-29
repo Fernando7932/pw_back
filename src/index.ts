@@ -33,9 +33,9 @@ const io = new Server(httpServer, {
 const PORT = process.env.PORT || 3001;
 
 // Configuración de seguridad para Tokens
-const JWT_SECRET = process.env.JWT_SECRET || 'una-frase-secreta-muy-dificil-de-adivinar';
-if (JWT_SECRET === 'una-frase-secreta-muy-dificil-de-adivinar') {
-  console.warn('ADVERTENCIA: Estás usando el JWT_SECRET de desarrollo. ¡Cámbialo en .env!');
+const JWT_SECRET = process.env.JWT_SECRET || '#967C7C@82A8A5*';
+if (JWT_SECRET === '#967C7C@82A8A5*') {
+  console.warn('JWT_SECRET de desarrollo');
 }
 
 // Middlewares globales

@@ -1,37 +1,56 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Re-importamos el secreto. Asegúrate de que coincida con el de index.ts
-const JWT_SECRET = process.env.JWT_SECRET || 'una-frase-secreta-muy-dificil-de-adivinar';
+// ==========================================
+// 1. CONFIGURACIÓN DE SEGURIDAD
+// ==========================================
 
-// Extendemos el tipo 'Request' de Express para que acepte nuestra info de usuario
+// Recuperamos la clave secreta para validar la firma digital del token.
+const JWT_SECRET = process.env.JWT_SECRET || '#967C7C@82A8A5*';
+
+// ==========================================
+// 2. EXTENSIÓN DE TIPOS (TYPESCRIPT)
+// ==========================================
+
+// Extendemos la interfaz nativa 'Request' de Express.
+// Esto es necesario para que TypeScript no marque error al intentar leer 'req.user' más adelante.
 export interface AuthRequest extends Request {
-    user?: {
-        userId: string;
-        username: string;
-    };
+    user?: {
+        userId: string;
+        username: string;
+    };
 }
 
+// ==========================================
+// 3. LÓGICA DEL MIDDLEWARE
+// ==========================================
+
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
-    // 1. Obtener el token del header 'Authorization'
-    const authHeader = req.headers.authorization;
+    // A. Extracción del header de autorización
+    const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Acceso denegado. No se proveyó un token.' });
-    }
+    // Validamos que exista y que cumpla el estándar "Bearer <token>"
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Acceso denegado. No se proveyó un token.' });
+    }
 
-    const token = authHeader.split(' ')[1]; // Nos quedamos solo con el token
+    const token = authHeader.split(' ')[1]; // Obtenemos el string del token limpio
 
-    try {
-        // 2. Verificar el token con el secreto
-        const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
+    try {
+        // B. Verificación de integridad y expiración
+        // Si la firma no coincide o el token expiró, jwt.verify lanzará un error automáticamente
+        const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
 
-        // 3. Si es válido, añadimos la info del usuario al objeto 'req'
-        req.user = payload;
-        
-        // 4. Dejamos que la petición continúe hacia el endpoint
-        next();
-    } catch (error) {
-        res.status(401).json({ message: 'Token inválido o expirado.' });
-    }
+        // C. Inyección de contexto de usuario
+        // Guardamos los datos decodificados en 'req' para que los endpoints protegidos sepan quién es el usuario
+        req.user = payload;
+        
+        // D. Continuar el flujo
+        // 'next()' indica a Express que pase el control a la siguiente función (la ruta final)
+        next();
+
+    } catch (error) {
+        // Si ocurre cualquier error en la verificación, bloqueamos el acceso
+        res.status(401).json({ message: 'Token inválido o expirado.' });
+    }
 };
